@@ -39,7 +39,10 @@ namespace CallDataReader
           // plus or minus 15 milliseconds is fine.
           DateTime loopend = DateTime.Now.AddSeconds(5);
           // read the calls that have been added since we last ran
-          var data = BaseData.Get(call_db_cs, previous_max_id);
+          var data = (from bd in BaseData.Get(call_db_cs, previous_max_id)
+                      orderby bd.call_origin_time ascending
+                      select bd).ToList();
+                     
           if (data.Count() > 0)
           {
             long new_max = (from d in data select d.call_id).Max();
@@ -48,18 +51,22 @@ namespace CallDataReader
             List<Caller> callers = new List<Caller>();
             List<CallerAddress> addresses = new List<CallerAddress>();
             List<CallerLocation> locations = new List<CallerLocation>();
+            HashSet<string> seen_sessions = new HashSet<string>();
             // break them dowm into their components
             foreach (BaseData d in data)
             {
-
               if (Caller.IsValidCaller(d))
               {
-
-                callers.Add(new Caller(d));
-                if (CallerAddress.IsValidAddress(d))
+                if(!seen_sessions.Contains(d.session_id))
                 {
-                  addresses.Add(new CallerAddress(d));
+                  seen_sessions.Add(d.session_id);
+                  callers.Add(new Caller(d));
+                  if (CallerAddress.IsValidAddress(d))
+                  {
+                    addresses.Add(new CallerAddress(d));
+                  }
                 }
+
                 if (CallerLocation.IsValidLocation(d))
                 {
                   locations.Add(new CallerLocation(d));
@@ -67,9 +74,9 @@ namespace CallDataReader
               }
             }
             // save the components
-            Caller.Save(callers);
-            CallerAddress.Save(addresses);
-            CallerLocation.Save(locations);
+            Caller.Save(callers, tracking_db_cs);
+            CallerAddress.Save(addresses, tracking_db_cs);
+            CallerLocation.Save(locations, tracking_db_cs);
 
 
           }
