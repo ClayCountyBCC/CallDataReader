@@ -76,7 +76,7 @@ namespace CallDataReader.Models
     private static long Get_Previous_Max_Id()
     {
       return 7145348;
-      // this function 
+      // this function will return the max value stored in the database once we have some data in there.
     }
 
   }
