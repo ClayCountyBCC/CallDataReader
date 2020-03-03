@@ -27,9 +27,8 @@ namespace CallDataReader.Models
 
     public BaseData() { }
 
-    public static List<BaseData> Get(string cs, long previous_max_id = -1)
+    public static List<BaseData> Get(string cs, long previous_max_id)
     {
-      if (previous_max_id == -1) previous_max_id = Get_Previous_Max_Id();
       var param = new DynamicParameters();
       param.Add(":previous_max_id", previous_max_id);
 
@@ -73,11 +72,7 @@ namespace CallDataReader.Models
 
     }
 
-    private static long Get_Previous_Max_Id()
-    {
-      return 7145348;
-      // this function will return the max value stored in the database once we have some data in there.
-    }
+
 
   }
 }
