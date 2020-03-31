@@ -31,7 +31,8 @@ namespace CallDataReader
       if (DateTime.Now.Hour > 4) end_time = DateTime.Today.AddDays(1).AddHours(5).AddMinutes(-1);
 
       int error_count = 0;
-
+      //Console.WriteLine($"Program is scheduled to end on: { end_time.ToString() }");
+      //new ErrorLog("Program running", end_time.ToString(), "", "", "", true);
       // process steps
       // main loop
       while (DateTime.Now < end_time)
@@ -42,55 +43,68 @@ namespace CallDataReader
           // plus or minus 15 milliseconds is fine.
           DateTime loopend = DateTime.Now.AddSeconds(5);
           // read the calls that have been added since we last ran
-          var data = (from bd in BaseData.Get(call_db_cs, previous_max_id)
-                      orderby bd.call_origin_time ascending
-                      select bd).ToList();
-                     
-          if (data.Count() > 0)
+          var data = BaseData.Get(call_db_cs, previous_max_id);
+          if (data != null)
           {
-            long new_max = (from d in data select d.call_id).Max();
-            previous_max_id = Math.Max(new_max, previous_max_id);
+            data = (from bd in data
+                    orderby bd.call_origin_time ascending
+                    select bd).ToList();
 
-            List<Caller> callers = new List<Caller>();
-            List<CallerAddress> addresses = new List<CallerAddress>();
-            List<CallerLocation> locations = new List<CallerLocation>();
-            HashSet<string> seen_sessions = new HashSet<string>();
-            // break them dowm into their components
-            foreach (BaseData d in data)
+
+            if (data.Count() > 0)
             {
-              if (Caller.IsValidCaller(d))
+              long new_max = (from d in data select d.call_id).Max();
+              previous_max_id = Math.Max(new_max, previous_max_id);
+
+              List<Caller> callers = new List<Caller>();
+              List<CallerAddress> addresses = new List<CallerAddress>();
+              List<CallerLocation> locations = new List<CallerLocation>();
+              HashSet<string> seen_sessions = new HashSet<string>();
+              // break them dowm into their components
+              foreach (BaseData d in data)
               {
-                if(!seen_sessions.Contains(d.session_id))
+                if (Caller.IsValidCaller(d))
                 {
-                  seen_sessions.Add(d.session_id);
-                  callers.Add(new Caller(d));
-                  if (CallerAddress.IsValidAddress(d))
+                  if (!seen_sessions.Contains(d.session_id))
                   {
-                    addresses.Add(new CallerAddress(d));
+                    seen_sessions.Add(d.session_id);
+                    callers.Add(new Caller(d));
+                    if (CallerAddress.IsValidAddress(d))
+                    {
+                      addresses.Add(new CallerAddress(d));
+                    }
+                  }
+
+                  if (CallerLocation.IsValidLocation(d))
+                  {
+                    locations.Add(new CallerLocation(d));
                   }
                 }
-
-                if (CallerLocation.IsValidLocation(d))
-                {
-                  locations.Add(new CallerLocation(d));
-                }
               }
+              // save the components
+              Caller.Save(callers, tracking_db_cs);
+              CallerAddress.Save(addresses, tracking_db_cs);
+              CallerLocation.Save(locations, tracking_db_cs);
+              //Console.WriteLine($"Saved {callers.Count().ToString()} callers");
+              //new ErrorLog($"Saved {callers.Count().ToString()} callers", callers.Count().ToString(), "", "", "", true);
+
             }
-            // save the components
-            Caller.Save(callers, tracking_db_cs);
-            CallerAddress.Save(addresses, tracking_db_cs);
-            CallerLocation.Save(locations, tracking_db_cs);
-
-
+            // wait for at most 5 seconds
+            var now = DateTime.Now;
+            int current = (int)loopend.Subtract(now).TotalMilliseconds;
+            if (current > 0)
+            {
+              Thread.Sleep(current);
+            }
+            error_count = 0;
           }
-          // wait for at most 5 seconds
-          var now = DateTime.Now;
-          int current = (int)loopend.Subtract(now).TotalMilliseconds;
-          if (current > 0)
+          else
           {
-            Thread.Sleep(current);
+            Console.WriteLine("Data returned from the database is invalid, sleeping for 60 seconds.");
+            new ErrorLog("Data returned is invalid", "sleeping for 60 seconds", "", "", "", true);
+            Thread.Sleep(60000);
           }
-          error_count = 0;
+
         }
         catch(Exception ex)
         {

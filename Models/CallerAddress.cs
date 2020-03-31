@@ -28,7 +28,7 @@ namespace CallDataReader.Models
       {
         // if there is a space and then a dash followed by something, let's get rid of it and replace it with a space.
         // this should hopefully match the whole_address column in the Address_Site table.
-        return Regex.Replace(raw_street_number, "[ ]{2,}-", " ").Trim();
+        return Regex.Replace(raw_street_number, "([ ]{2,}-|[ ]+)", " ").Trim();
       }
     }    
     public string street_name

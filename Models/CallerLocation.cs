@@ -181,7 +181,7 @@ namespace CallDataReader.Models
         }
         if (Decimal.TryParse(raw[1], out decimal tmp_long))
         {
-          latitude = tmp_long;
+          longitude = tmp_long;
         }
       }
       catch
